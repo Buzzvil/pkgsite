@@ -1,0 +1,8 @@
+name: pkgsite
+description: Go Document Service
+repository: Buzzvil/pkgsite
+environments:
+  dev:
+    name: dev
+  prod:
+    name: prod

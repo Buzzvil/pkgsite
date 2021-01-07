@@ -1,0 +1,53 @@
+kind: pipeline
+type: kubernetes
+name: publish
+
+steps:
+  # prerequsites 
+  # 1. create a ECR repositry before deploy.
+  # 2. set the secret in Drone CI. please check the notes of "github read only" in 1password.
+- name: publish
+  image: plugins/ecr
+  environment:
+    PLUGIN_STORAGE_DRIVER: overlay2
+    PLUGIN_CACHE_FROM: > 
+      591756927972.dkr.ecr.ap-northeast-1.amazonaws.com/pkgsite:${DRONE_DEPLOY_TO}
+    GITHUB_TOKEN:
+      from_secret: github_token
+  settings:
+    registry: 591756927972.dkr.ecr.ap-northeast-1.amazonaws.com
+    repo: 591756927972.dkr.ecr.ap-northeast-1.amazonaws.com/pkgsite
+    region: ap-northeast-1
+    build_args_from_env:
+    - GITHUB_TOKEN
+    tags:
+    - ${DRONE_DEPLOY_TO}-${DRONE_BUILD_NUMBER}-${DRONE_COMMIT_SHA}
+    - ${DRONE_DEPLOY_TO}
+    - ${DRONE_BRANCH}
+
+- name: webhook
+  image: plugins/webhook
+  settings:
+    urls: http://spin-gate.spinnaker:8084/webhooks/webhook/deploy-pkgsite
+    content_type: application/json
+    template: |
+      {
+        "image_tag": "${DRONE_DEPLOY_TO}-${DRONE_BUILD_NUMBER}-${DRONE_COMMIT_SHA}",
+        "repository": "${DRONE_REPO}",
+        "environment": "${DRONE_DEPLOY_TO}",
+        "parameters": {
+          "image_tag": "${DRONE_DEPLOY_TO}-${DRONE_BUILD_NUMBER}-${DRONE_COMMIT_SHA}",
+          "repository": "${DRONE_REPO}",
+          "environment": "${DRONE_DEPLOY_TO}"
+        }
+      }
+
+trigger:
+  event:
+  - promote
+  target:
+  - prod
+  - prodmini
+  - staging
+  - stagingqa
+  - dev
